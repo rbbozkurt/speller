@@ -24,12 +24,17 @@ def plot_letter_sensors(target_letters: [], data_frame: pd.DataFrame(), labels: 
             plt.close(fig)
 
 
-def plot_conf_matrix(cm, ylabel, xlabel, title):
+def plot_conf_matrix(cm, ylabel, xlabel, title, ticks):
     sns.heatmap(cm,
                 annot=True)
-    plt.ylabel(ylabel, fontsize=13)
-    plt.xlabel(xlabel, fontsize=13)
-    plt.title(title, fontsize=17)
+    tick_number = np.arange(len(ticks))
+
+    plt.ylabel(ylabel, fontsize=11)
+    plt.xlabel(xlabel, fontsize=11)
+    plt.title(title, fontsize=13)
+    plt.xticks(tick_number, ticks)
+    plt.yticks(tick_number, ticks)
+
     plt.savefig('figures/{}.pdf'.format(title))
     plt.close()
 

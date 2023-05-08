@@ -48,7 +48,7 @@ if __name__ == '__main__':
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
     print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
     print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix Summ Stat')
+    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix Summary Statistics',TARGET_LETTERS)
     print(type(trained_model))
     initial_type = [
         ('input', FloatTensorType([None, 1200]))
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
     print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
     print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix')
+    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix',TARGET_LETTERS)
     print(type(trained_model))
     initial_type = [
         ('input', FloatTensorType([None, 1200]))
