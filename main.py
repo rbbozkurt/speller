@@ -9,6 +9,7 @@ import string
 from database.SpellerDatabase import *
 import plot.SpellerPlotter as Plotter
 import SpellerConstant
+import SpellerModel
 from train import SpellerPreProcesser
 from train import SpellerTrainer
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
@@ -30,6 +31,7 @@ def create_label_dict(letter_list: []):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    S
     speller_database = SpellerDatabase(SpellerConstant.FIREBASE_REFERENCE, SpellerConstant.SENSOR_AXES)
     data_frame = speller_database.read_letters_from_database(TARGET_LETTERS)
 
@@ -48,10 +50,10 @@ if __name__ == '__main__':
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
     print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
     print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix Summary Statistics',TARGET_LETTERS)
+    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix Summary Statistics', TARGET_LETTERS)
     print(type(trained_model))
     initial_type = [
-        ('input', FloatTensorType([None, 1200]))
+        ('input', FloatTensorType([None, 12000]))
     ]
     SpellerTrainer.convert_to_onnx(trained_model, "sklearn_summ_model", initial_type)
 
@@ -67,12 +69,14 @@ if __name__ == '__main__':
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
     print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
     print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix',TARGET_LETTERS)
-    print(type(trained_model))
-    initial_type = [
-        ('input', FloatTensorType([None, 1200]))
-    ]
-    SpellerTrainer.convert_to_onnx(trained_model, "sklearn_model", initial_type)
+    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix', TARGET_LETTERS)
+
+    # print(type(trained_model))
+    # initial_type = [
+    #   ('input', FloatTensorType([None, 1200]))
+    # ]
+    SpellerTrainer.convert_to_onnx(trained_model, "sklearn_model", X_train)
+
     Plotter.plot_bar([0.0, 1.0], balance_acc_score, models, "Balance Accuracy Scores")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
