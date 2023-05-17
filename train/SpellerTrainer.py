@@ -14,7 +14,6 @@ def train_model(X_train, y_train, knn):
     knn.fit(X_train, y_train)
     return knn
 
-
 def convert_to_onnx(model, model_name, init_types):
 
     # Write the ONNX model to disk
