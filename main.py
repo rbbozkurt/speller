@@ -117,18 +117,24 @@ if __name__ == '__main__':
     X, y = read_letters_from_npz('X_nonNaN.npz','y_nonNaN.npz')
 
     #TODO 3. split train and test data
+    print("------------ Splitting test,train set ------------")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
     #TODO 4. train model with ts-learn
     tslearn_knn = KNeighborsTimeSeriesClassifier(n_neighbors=len(TARGET_LETTERS), metric="dtw")
-    tslearn_knn.fit(X_train, y_train)
+    print("------------ Training TsLearn Model ------------")
+    tslearn_knn = tslearn_knn.fit(X_train, y_train)
+    print("------------ Testing TsLearn Model ------------")
     y_pred = tslearn_knn.predict(X_test)
     conf_matrix_ts = confusion_matrix(y_test, y_pred)
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
     #TODO 5. cross-validate model
     #TODO 6. train model with scikitlearn
+    print("------------ Splitting test,train set ------------")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
     sklearn_knn = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
+    print("------------ Training SciKit Model ------------")
     trained_model = SpellerTrainer.train_model(X_train, y_train, sklearn_knn)
+    print("------------ Testing SciKit Model ------------")
     y_pred = trained_model.predict(X_test)
     conf_matrix_scikit = confusion_matrix(y_test, y_pred)
     balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
@@ -136,6 +142,7 @@ if __name__ == '__main__':
     #TODO calculate model scores
     #TODO 8. compare two models
     #TODO 9. Plot performance of two models
+    print("------------ Plotting results ------------")
     Plotter.plot_conf_matrix(conf_matrix_ts, 'Prediction', 'Actual', 'Confusion Matrix with TsLearn', TARGET_LETTERS)
     Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion Matrix with SciKit', TARGET_LETTERS)
     Plotter.plot_bar([0.0, 1.0], balance_acc_score, models, "Balance Accuracy Scores")
