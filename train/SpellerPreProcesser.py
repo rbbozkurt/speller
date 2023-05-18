@@ -19,7 +19,7 @@ def extract_X_y(data_frame: pd.DataFrame()):
 
 def standardize(data: []):
     data = to_time_series_dataset(data)
-    data = TimeSeriesScalerMinMax().fit_transform(data)
+    data = TimeSeriesScalerMinMax((-1.,1.)).fit_transform(data)
     dim = data.shape
     data = data.reshape(dim[0], -1)
     return data

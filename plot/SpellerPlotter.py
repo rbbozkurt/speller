@@ -24,6 +24,27 @@ def plot_letter_sensors(target_letters: [], data_frame: pd.DataFrame(), labels: 
             plt.close(fig)
 
 
+def plot_letter_sensor(data_frame: pd.DataFrame(), labels: {}):
+    data_array = data_frame["data"].iloc[0]
+    data_label = data_frame["target"].iloc[0]
+    data_len = len(data_array) / 10
+    data_time_step = np.repeat(np.arange(1, data_len + 1), 10)
+    sensors = ['game_rotation_vector_U', 'game_rotation_vector_X', 'game_rotation_vector_Y', 'game_rotation_vector_Z',
+               'gyroscope_X', 'gyroscope_Y', 'gyroscope_Z', 'linear_acceleration_X', 'linear_acceleration_Y',
+               'linear_acceleration_Z']
+    data_sensors = np.tile(sensors, int(data_len))
+
+    frame = {'values': data_array,
+             'time_step': data_time_step,
+             'sensor': data_sensors}
+
+    # Creating DataFrame by passing Dictionary
+    result = pd.DataFrame(frame)
+
+    letter_plot = sns.relplot(data=result, x='time_step', y='values', row='sensor', kind='line')
+    letter_plot.savefig('figures/{}_{}.pdf'.format("single_sensor_data", data_label))
+
+
 def plot_conf_matrix(cm, ylabel, xlabel, title, ticks):
     sns.heatmap(cm,
                 annot=True)
