@@ -12,18 +12,21 @@ from SpellerConstant import SUMMARY_STATISTICS_SUFFIX
 
 def extract_X_y(data_frame: pd.DataFrame()):
     data = data_frame['data'].tolist()
-    X = standardize(data)
+    X = pad_data(data)
     y = data_frame['target'].to_numpy()
     return X, y
 
 
-def standardize(data: []):
+def standardize(data: [], min,max ):
+    _data = TimeSeriesScalerMinMax((min,max)).fit_transform(data)
+    dim = _data.shape
+    _data = _data.reshape(dim[0], -1)
+    return _data
+def pad_data(data: []):
     data = to_time_series_dataset(data)
-    data = TimeSeriesScalerMinMax((-1.,1.)).fit_transform(data)
     dim = data.shape
     data = data.reshape(dim[0], -1)
     return data
-
 
 def extract_X_y_summ_sta(data_frame: pd.DataFrame()):
     for axes in SENSOR_AXES:
@@ -38,7 +41,7 @@ def extract_X_y_summ_sta(data_frame: pd.DataFrame()):
     y = data_frame['target'].to_numpy()
     return X, y
 
-
+#TODO add peak and dip numbers
 def create_summary_statistics(data_frame: pd.DataFrame()):
     for axes in SENSOR_AXES:
         column = data_frame[axes]

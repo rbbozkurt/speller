@@ -5,14 +5,28 @@ import SpellerConstant
 import numpy as np
 from tqdm import tqdm
 from functools import lru_cache
+from pathlib import Path
+
 
 def read_letters_from_npz(X_path, y_path):
     npz_X = np.load(X_path)
     npz_y = np.load(y_path)
-    return  npz_X['arr_0'], npz_y['arr_0']
+    return npz_X['arr_0'], npz_y['arr_0']
+
+
+def read_letters_from_npy(X_path, y_path):
+    root_filename = Path("/Users/resitberkaybozkurt/PycharmProjects/speller_data")
+    file_X = root_filename / X_path
+    file_y = root_filename / y_path
+    X = np.load(file_X.as_posix())
+    y = np.load(file_y.as_posix())
+    print(X.shape)
+    print(y.shape)
+    return X, y
+
 
 @lru_cache()
-def read_letters_from_database( firebase_ref, target_letters: tuple) -> pd.DataFrame():
+def read_letters_from_database(firebase_ref, target_letters: tuple) -> pd.DataFrame():
     data_frame = pd.DataFrame()
     fb_app = firebase.FirebaseApplication(firebase_ref, None)
     devices_db = fb_app.get(SpellerConstant.DEVICES_NODE_REFERENCE, None)
