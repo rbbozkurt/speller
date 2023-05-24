@@ -103,7 +103,12 @@ def temp():
 def plot_graphs_from_data_frame(data_frame, label_dic):
     Plotter.plot_letter_sensors(TARGET_LETTERS, data_frame, label_dic, "Before standardized")
     Plotter.plot_letter_sensor(data_frame,label_dic)
-
+def get_summ_stats_X_y_from_data_frame(data_frame):
+    # create summary statistics from sensor datas
+    data_frame_summ = SpellerPreProcesser.create_summary_statistics(data_frame)
+    # extract X and y values from summ stat data
+    X, y = SpellerPreProcesser.extract_X_y_summ_sta(data_frame_summ)
+    return X, y
 def tslearn_train_session(X,y):
     # balance acc score list for different datasets
     balance_acc_score = []
@@ -236,8 +241,8 @@ def sklearn_train_session(X, y):
 if __name__ == '__main__':
     label_dict = create_label_dict(TARGET_LETTERS)
     data_frame = SpellerDatabase.read_letters_from_database(SpellerConstant.FIREBASE_REFERENCE,tuple(label_dict))
-    plot_graphs_from_data_frame(data_frame,label_dict)
-    X, y = SpellerPreProcesser.extract_X_y(data_frame)
+    #plot_graphs_from_data_frame(data_frame,label_dict)
+    X, y = get_summ_stats_X_y_from_data_frame(data_frame)
     #X, y = read_letters_from_npy('X_timeseries.npy', 'y_timeseries.npy')
     sk_model_desc, sk_model_sc = sklearn_train_session(X, y)
     ts_model_desc, ts_model_sc = tslearn_train_session(X, y)
