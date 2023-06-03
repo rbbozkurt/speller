@@ -60,10 +60,11 @@ def plot_conf_matrix(cm, ylabel, xlabel, title, ticks):
     plt.close()
 
 
-def plot_bar(y_pos, y_values, x_ticks, title):
-    x_pos = np.arange(len(x_ticks))
+def plot_bar(y_values, x_values, title):
+    x_pos = np.arange(len(x_values))
+    y_pos = np.arange(len(y_values))
     plt.bar(y_pos, y_values)
-    plt.xticks(x_pos, x_ticks)
+    plt.xticks(x_pos, x_values,rotation=45, ha='right')
     plt.title(title, fontsize=17)
     plt.savefig('figures/{}.pdf'.format(title))
     plt.close()

@@ -2,7 +2,7 @@ from tslearn.metrics import dtw
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, top_k_accuracy_score
 from sklearn.metrics import accuracy_score
 from mlxtend.plotting import plot_decision_regions
 from skl2onnx import convert_sklearn
@@ -11,6 +11,9 @@ from skl2onnx.common.data_types import FloatTensorType
 from skl2onnx.helpers.onnx_helper import save_onnx_model
 
 
+def calculate_top_k_accuracy(model, X_test, y_test, k):
+    y_prob = model.predict_proba(X_test)
+    return top_k_accuracy_score(y_test, y_prob, k=k)
 
 
 def convert_to_onnx(model, model_name, init_types):

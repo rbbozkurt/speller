@@ -4,9 +4,11 @@ import numpy as np
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.neighbors import KNeighborsClassifier
 from tslearn.metrics import dtw
 import string
-
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold, cross_val_score
 from database import SpellerDatabase
 from database.SpellerDatabase import *
 import plot.SpellerPlotter as Plotter
@@ -14,8 +16,8 @@ import SpellerConstant
 from train import SpellerModel
 from train import SpellerPreProcesser
 from train import SpellerTrainer
-from tslearn.neighbors import KNeighborsTimeSeriesClassifier
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from skl2onnx.common.data_types import FloatTensorType
@@ -23,6 +25,8 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 
 TARGET_LETTERS = list(string.ascii_uppercase)
+TOP_K_VALUES = [1, 2, 3, 4, 5]
+N_SPLITS = 5
 
 
 def create_label_dict(letter_list: []):
@@ -32,225 +36,161 @@ def create_label_dict(letter_list: []):
     return labels
 
 
-def temp():
-    balance_acc_score = []
-
-    # names of the datasets
-    models = ['Summary statistics with SciKit', 'Sensor data with SciKit']
-
-    # summary statistics with SciKit
-
-    # create summary statistics from sensor datas
-    data_frame_summ = SpellerPreProcesser.create_summary_statistics(data_frame)
-    # extract X and y values from summ stat data
-    X, y = SpellerPreProcesser.extract_X_y_summ_sta(data_frame_summ)
-    # split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    # create kn model
-    sklearn_knn = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
-    # train model
-    trained_model = SpellerTrainer.train_model(X_train, y_train, sklearn_knn)
-    # test model
-    y_pred = trained_model.predict(X_test)
-    # create conf matrix
-    conf_matrix = confusion_matrix(y_test, y_pred)
-    print('--------------- Summary Statistics ---------------')
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
-    print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix Summary Statistics', TARGET_LETTERS)
-    print("Shape: {}".format(X_train.shape[1]))
-    initial_type = [
-        ('input', FloatTensorType([None, X_train.shape[1]]))
-    ]
-    SpellerTrainer.convert_to_onnx(trained_model, "sklearn_summ_model", initial_type)
-
-    # sensor data with SciKit
-    X, y = SpellerPreProcesser.extract_X_y(data_frame)
-    X = np.nan_to_num(X, copy=True)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    sklearn_knn = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
-    trained_model = SpellerTrainer.train_model(X_train, y_train, sklearn_knn)
-    y_pred = trained_model.predict(X_test)
-    conf_matrix = confusion_matrix(y_test, y_pred)
-
-    print('--------------- Sensor Statistics ---------------')
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
-    print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix with SciKit', TARGET_LETTERS)
-
-    print("Shape: {}".format(X_train.shape[1]))
-    initial_type = [
-        ('input', FloatTensorType([None, X_train.shape[1]]))
-    ]
-    SpellerTrainer.convert_to_onnx(trained_model, "sklearn_model", initial_type)
-
-    # sensor data with TsLearn
-    tslearn_knn = KNeighborsTimeSeriesClassifier(n_neighbors=len(TARGET_LETTERS), metric="dtw")
-    tslearn_knn.fit(X_train, y_train)
-    y_pred = tslearn_knn.predict(X_test)
-    conf_matrix = confusion_matrix(y_test, y_pred)
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    print(SpellerPreProcesser.multiclass_roc_auc_score(y_test, y_pred))
-    print(classification_report(y_test, y_pred, target_names=TARGET_LETTERS))
-    Plotter.plot_conf_matrix(conf_matrix, 'Prediction', 'Actual', 'Confusion Matrix with TsLearn', TARGET_LETTERS)
-
-    Plotter.plot_bar([0.0, 1.0], balance_acc_score, models, "Balance Accuracy Scores")
-
-    print(SpellerModel.predict_using_model("sklearn_model.onnx", X_test))
-
 def plot_graphs_from_data_frame(data_frame, label_dic):
     Plotter.plot_letter_sensors(TARGET_LETTERS, data_frame, label_dic, "Before standardized")
-    Plotter.plot_letter_sensor(data_frame,label_dic)
+    Plotter.plot_letter_sensor(data_frame, label_dic)
+
+
 def get_summ_stats_X_y_from_data_frame(data_frame):
     # create summary statistics from sensor datas
     data_frame_summ = SpellerPreProcesser.create_summary_statistics(data_frame)
     # extract X and y values from summ stat data
     X, y = SpellerPreProcesser.extract_X_y_summ_sta(data_frame_summ)
     return X, y
-def tslearn_train_session(X,y):
-    # balance acc score list for different datasets
-    balance_acc_score = []
-    # names of the datasets
-    models = []
 
 
-    # train model with scikitlearn
-    shuffles = StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
-    conf_matrices = []
+def train_session(model, X, y, session_desc):
+    # fold scores and descriptions
+    fold_scores = []
+    fold_descs = []
+
+    # validation score and descriptions
+    valid_score = None
+    valid_desc = None
+
+    # min and max values for scaler
     min = -1
     max = 1
-    print("------------ Standardizing data with ({},{}) ------------".format(min, max))
-    _X = np.nan_to_num(X, copy=True)
-    _X = SpellerPreProcesser.standardize(_X, min, max)
-    tslearn_knn = KNeighborsTimeSeriesClassifier(n_neighbors=len(TARGET_LETTERS))
-    print("------------ Splitting test,train set ------------")
-    X_train, X_test, y_train, y_test = train_test_split(_X, y, test_size=0.2, random_state=42, stratify=y)
-    print("------------ Training TsL Model ------------")
-    tslearn_knn = tslearn_knn.fit(X_train, y_train)
-    print("------------ Testing TsL Model ------------")
-    y_pred = tslearn_knn.predict(X_test)
-    conf_matrix_scikit = confusion_matrix(y_test, y_pred)
-    model_desc = "TsL Test Data "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
 
-    y_pred = tslearn_knn.predict(X_train)
-    conf_matrix_scikit = confusion_matrix(y_train, y_pred)
-    model_desc = "TsL Train Data"
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_train, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
-    # cross-validate model
-    tslearn_knn = tslearn_knn.fit(X_test, y_test)
-    y_pred = tslearn_knn.predict(X_train)
-    conf_matrix_scikit = confusion_matrix(y_train, y_pred)
-    model_desc = "TsL Cross-Train "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_train, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
+    # pad and scale data
+    print("------------ Standardizing data with ({},{}) ({}) ------------".format(min, max, session_desc))
+    _X = standardize_data(X, max, min)
 
-    y_pred = tslearn_knn.predict(X_test)
-    conf_matrix_scikit = confusion_matrix(y_test, y_pred)
-    model_desc = "TsL Cross-Test "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
+    # split the data and store X_valid and y_valid for leave out validation
+    print("------------ Splitting test,train set ({}) ------------".format(session_desc))
+    _X, X_valid, y, y_valid = train_test_split(_X, y, test_size=0.2, random_state=42, stratify=y)
+
+    # get train and test indeces
+    print("------------ Training SciKit Model ({}) ------------".format(session_desc))
+    model = fold_test_train(_X, fold_descs, fold_scores, model, y)
+
+    # test model on validation set
+    print("------------ Testing SciKit Model ({}) ------------".format(session_desc))
+    valid_desc, valid_score, y_pred = model_predict(model, X_valid, y_valid)
+
+    if 'HGBR' not in session_desc:
+        calculate_top_k_accuracy_scores(_X, model, session_desc, y)
+
+    model_desc = "Test-{}".format(session_desc)
+    title = 'Confusion {}'.format(model_desc)
+    plot_confusion_matrix(title, y_pred, y_valid)
+
+    y_pred = model.predict(X_valid)
+    y_pred = np.around(y_pred)
+
+
+    model_desc = "Train-{}".format(session_desc)
+    title = 'Confusion {}'.format(model_desc)
+    plot_confusion_matrix(title, y_pred, y_valid)
+
 
     # Plot performance of two models
     print("------------ Plotting results ------------")
-    Plotter.plot_bar(np.arange(start=0.0, stop=len(models), step=1.0), balance_acc_score, models,
-                     "Balance Accuracy Scores")
+    Plotter.plot_bar(fold_scores, fold_descs, "Balance Accuracy Scores of Folds {}".format(model_desc))
 
-    return model_desc, balance_acc_score
-def sklearn_train_session(X, y):
-    # balance acc score list for different datasets
-    balance_acc_score = []
-    # names of the datasets
-    models = []
+    return valid_desc, valid_score, model
 
 
-    # train model with scikitlearn
-    shuffles = StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
-    conf_matrices = []
-    min = -1
-    max = 1
-    print("------------ Standardizing data with ({},{}) ------------".format(min, max))
+def plot_confusion_matrix(title, y_pred, y_valid):
+    conf_matrix_scikit = confusion_matrix(y_valid, y_pred)
+    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', title,
+                             TARGET_LETTERS)
+
+
+def model_predict(model, X_valid, y_valid):
+    y_pred = model.predict(X_valid)
+    y_pred = np.around(y_pred)
+    valid_score = balanced_accuracy_score(y_valid, y_pred)
+    valid_desc = 'Validation'
+    return valid_desc, valid_score, y_pred
+
+
+def fold_test_train(_X, fold_descs, fold_scores, model, y):
+    skf = StratifiedKFold(n_splits=N_SPLITS)
+    for i, (train_index, test_index) in enumerate(skf.split(_X, y)):
+        X_train = _X[train_index]
+        y_train = y[train_index]
+        X_test = _X[test_index]
+        y_test = y[test_index]
+        # fit model
+        model = model.fit(X_train, y_train)
+        # get predictions
+        y_pred = model.predict(X_test)
+        y_pred = np.around(y_pred)
+        fold_descs.append('Fold {}'.format(i))
+        fold_scores.append(balanced_accuracy_score(y_test, y_pred))
+    mean_of_folds = np.mean(fold_scores)
+    fold_scores.append(mean_of_folds)
+    fold_descs.append('Mean')
+    return model
+
+
+def standardize_data(X, max, min):
     _X = np.nan_to_num(X, copy=True)
     _X = SpellerPreProcesser.standardize(_X, min, max)
-    sklearn_knn = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
-    print("------------ Splitting test,train set ------------")
-    X_train, X_test, y_train, y_test = train_test_split(_X, y, test_size=0.2, random_state=42, stratify=y)
-    print("------------ Training SciKit Model ------------")
-    sklearn_knn = sklearn_knn.fit(X_train, y_train)
-    print("------------ Testing SciKit Model ------------")
-    y_pred = sklearn_knn.predict(X_test)
-    conf_matrix_scikit = confusion_matrix(y_test, y_pred)
-    model_desc = "SciKit Test Data "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
+    return _X
 
-    y_pred = sklearn_knn.predict(X_train)
-    conf_matrix_scikit = confusion_matrix(y_train, y_pred)
-    model_desc = "SciKit Train Data"
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_train, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
-    # cross-validate model
-    sklearn_knn = sklearn_knn.fit(X_test, y_test)
-    y_pred = sklearn_knn.predict(X_train)
-    conf_matrix_scikit = confusion_matrix(y_train, y_pred)
-    model_desc = "SciKit Cross-Train "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_train, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
 
-    y_pred = sklearn_knn.predict(X_test)
-    conf_matrix_scikit = confusion_matrix(y_test, y_pred)
-    model_desc = "SciKit Cross-Test "
-    models.append(model_desc)
-    conf_matrices.append(conf_matrix_scikit)
-    balance_acc_score.append(balanced_accuracy_score(y_test, y_pred))
-    Plotter.plot_conf_matrix(conf_matrix_scikit, 'Prediction', 'Actual', 'Confusion {}'.format(model_desc),
-                             TARGET_LETTERS)
+def calculate_top_k_accuracy_scores(_X, model, session_desc, y):
+    # calculate top-k accuracy scores
+    print("------------ Calculating Top-K-Accuray SciKit Model ({}) ------------".format(session_desc))
+    k_values = []
+    score = []
+    for k in TOP_K_VALUES:
+        k_values.append(k)
+        score.append(SpellerTrainer.calculate_top_k_accuracy(model, _X, y, k))
+    print("------------ Plotting results of Top-K-Accuracy ------------")
+    Plotter.plot_bar(score, k_values, "Top K Accuracy Scores Sk {}".format(session_desc))
 
-    # Plot performance of two models
-    print("------------ Plotting results ------------")
-    Plotter.plot_bar(np.arange(start=0.0, stop=len(models), step=1.0), balance_acc_score, models,
-                     "Balance Accuracy Scores")
+def init_and_train_models(X, y, desc):
+    lr_model = LogisticRegression(random_state=0, multi_class='multinomial')
+    knn_model = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
+    hgbr_model = HistGradientBoostingRegressor()
+    # start train sessions
+    knn_desc, knn_sc, _ = train_session(knn_model, X, y, "{}_KNN".format(desc))
+    lr_desc, lr_sc, _ = train_session(lr_model, X, y, "{}_LR".format(desc))
+    hgbr_desc, hgbr_sc, _ = train_session(hgbr_model, X, y, "{}_HGBR".format(desc))
+    model_descs = knn_desc + lr_desc + hgbr_desc
+    model_scos = knn_sc + lr_sc + hgbr_sc
 
-    return model_desc, balance_acc_score
+    return model_descs, model_scos
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     label_dict = create_label_dict(TARGET_LETTERS)
-    data_frame = SpellerDatabase.read_letters_from_database(SpellerConstant.FIREBASE_REFERENCE,tuple(label_dict))
-    #plot_graphs_from_data_frame(data_frame,label_dict)
-    X, y = get_summ_stats_X_y_from_data_frame(data_frame)
-    #X, y = read_letters_from_npy('X_timeseries.npy', 'y_timeseries.npy')
-    sk_model_desc, sk_model_sc = sklearn_train_session(X, y)
-    ts_model_desc, ts_model_sc = tslearn_train_session(X, y)
-    desc = ts_model_desc + sk_model_desc
-    scores = ts_model_sc + ts_model_desc
+    data_frame = SpellerDatabase.read_letters_from_database(SpellerConstant.FIREBASE_REFERENCE, tuple(label_dict))
+
+    # plot_graphs_from_data_frame(data_frame,label_dict)
+    X, y = SpellerPreProcesser.extract_X_y(data_frame)
+
+    # init and train models with X, y
+    sd_descs, sd_scos = init_and_train_models(X, y, "SD")
+
+    X_summ_stat, y_summ_stat = get_summ_stats_X_y_from_data_frame(data_frame)
+    # X, y = read_letters_from_npy('X_timeseries.npy', 'y_timeseries.npy')
+
+    # init and train model with summary stats
+    ss_descs, ss_scos = init_and_train_models(X_summ_stat, y_summ_stat, "SS")
+
+    score = sd_scos + ss_scos
+    desc = sd_descs + ss_descs
+
     print("------------ Plotting results ------------")
-    Plotter.plot_bar(np.arange(start=0.0, stop=len(desc), step=1.0), scores, desc,
-                     "Balance Accuracy Scores Ts-Sk")
+    Plotter.plot_bar(sd_scos, sd_descs,
+                     "Balance Accuracy Scores Sk SD")
+    Plotter.plot_bar(ss_descs, ss_scos,
+                     "Balance Accuracy Scores Sk SS")
+    Plotter.plot_bar(score, desc,
+                     "Balance Accuracy Scores Comparison")
 
 # balance acc score list for different datasets
 
