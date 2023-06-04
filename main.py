@@ -77,6 +77,7 @@ def train_session(model, X, y, session_desc):
     # test model on validation set
     print("------------ Testing SciKit Model ({}) ------------".format(session_desc))
     valid_desc, valid_score, y_pred = model_predict(model, X_valid, y_valid)
+    valid_desc = '{}-{}'.format(valid_desc, session_desc)
 
     if 'HGBR' not in session_desc:
         calculate_top_k_accuracy_scores(_X, model, session_desc, y)
@@ -88,11 +89,9 @@ def train_session(model, X, y, session_desc):
     y_pred = model.predict(X_valid)
     y_pred = np.around(y_pred)
 
-
     model_desc = "Train-{}".format(session_desc)
     title = 'Confusion {}'.format(model_desc)
     plot_confusion_matrix(title, y_pred, y_valid)
-
 
     # Plot performance of two models
     print("------------ Plotting results ------------")
@@ -152,7 +151,10 @@ def calculate_top_k_accuracy_scores(_X, model, session_desc, y):
     print("------------ Plotting results of Top-K-Accuracy ------------")
     Plotter.plot_bar(score, k_values, "Top K Accuracy Scores Sk {}".format(session_desc))
 
+
 def init_and_train_models(X, y, desc):
+    model_descs = []
+    model_scos = []
     lr_model = LogisticRegression(random_state=0, multi_class='multinomial')
     knn_model = KNeighborsClassifier(n_neighbors=len(TARGET_LETTERS))
     hgbr_model = HistGradientBoostingRegressor()
@@ -160,10 +162,12 @@ def init_and_train_models(X, y, desc):
     knn_desc, knn_sc, _ = train_session(knn_model, X, y, "{}_KNN".format(desc))
     lr_desc, lr_sc, _ = train_session(lr_model, X, y, "{}_LR".format(desc))
     hgbr_desc, hgbr_sc, _ = train_session(hgbr_model, X, y, "{}_HGBR".format(desc))
-    model_descs = knn_desc + lr_desc + hgbr_desc
-    model_scos = knn_sc + lr_sc + hgbr_sc
+    model_descs.extend([knn_desc, lr_desc, hgbr_desc])
+    model_scos.extend([knn_sc, lr_sc, hgbr_sc])
 
     return model_descs, model_scos
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     label_dict = create_label_dict(TARGET_LETTERS)
